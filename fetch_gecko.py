@@ -31,7 +31,7 @@ import multiprocessing
 # Arm (right or left) used to pick and place object
 arm = 'left'
 
-# Coordinates of gripper center
+# Coordinates of gripper center in camera
 center_x = 525
 center_y = 260
 
@@ -69,7 +69,6 @@ class glass_fetcher:
         # Set arm speed
         self.limb.set_joint_position_speed(speed)
 
-#        baxter_tools.go_vertical(arm)
         baxter_tools.go_to(arm, x=0.75, y=0.36, z=0.05, xr=180, yr=0)
 
         # Get range to surface in meters
@@ -90,17 +89,16 @@ class glass_fetcher:
             cv_img = self.bridge.imgmsg_to_cv2(data, "bgr8")
         except CvBridgeError, e:
             print e
-        
-#        cv2.imwrite('/home/baxter/ros_ws/src/baxter_tools/share/images/test.jpg', cv_img)
+
         # Find centroid of object
         [(cx,cy),approx,self.angle] = self.finder.find_thing(cv_img)
-        
+
         if cx != -1:
             # Annotate camera image
             purple = [150, 0, 150]
             red = [0, 0, 255]
             blue = [255, 0, 0]
-            cv2.drawContours(cv_img, approx, -1, purple, 8) 
+            cv2.drawContours(cv_img, approx, -1, purple, 8)
             cv2.circle(cv_img, (cx, cy), 5, red, -1)
             cv2.circle(cv_img, (self.gx, self.gy), 5, blue, -8)
 
@@ -110,20 +108,20 @@ class glass_fetcher:
         # Briefly display annotated camera image
         cv2.imshow("Object search", cv_img)
         key = cv2.waitKey(3) & 0xFF
-        if key == ord('x'):
+        if key == ord('x'): # Exit
             rospy.signal_shutdown('User shutdown')
-        elif key == ord('n'):
+        elif key == ord('n'): # (Re)start
             self.head.command_nod(0)
             time.sleep(0.5)
             self.finished = 0
             self.angle_corrected = False
             self.moving = False
-        elif key == ord('d'):
+        elif key == ord('d'): # Refind distance
             self.head.command_nod(0)
             time.sleep(0.5)
             self.head.command_nod(0)
             self.dist = float(baxter_interface.analog_io.AnalogIO(arm + '_hand_range').state() / 1000.0)
-        
+
 
     def move_center(self, cx, cy):
         # If objective completed, return
@@ -159,7 +157,7 @@ class glass_fetcher:
                     self.angle_corrected = True
                     self.finished = 0
                     return
-                
+
 
                 try:
                     vert_off = self.gripper.pickup()
@@ -169,13 +167,6 @@ class glass_fetcher:
                     self.angle_corrected = False
                     return
                 baxter_tools.go_relative(arm, dz=0.05)
-                '''
-                if not self.gripper.gripping():
-                    self.gripper.open()
-                    pos_tools.command_shake()
-                    self.finished = 0
-                    return
-                '''
                 baxter_tools.go_to(arm, x=0.75, y=0.36)
                 self.gripper.putdown()
                 baxter_tools.set_z_distance(arm, self.dist)
@@ -213,7 +204,7 @@ def main(args):
     camera_setup()
     bf = glass_fetcher()
     print 'Press x to quit, n to (re)start or d to re-find table distance'
-    
+
     try:
       rospy.spin()
     except KeyboardInterrupt:

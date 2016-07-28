@@ -86,13 +86,13 @@ class thing_fetcher:
         self.image_sub = rospy.Subscriber('/cameras/' + arm + '_hand_camera/image',Image,self.callback, queue_size=1)
 
     def callback(self, data):
-        
+
         # Convert ROS image message to opencv format
         try:
             cv_img = self.bridge.imgmsg_to_cv2(data, "bgr8")
         except CvBridgeError, e:
             print e
-#        cv2.imwrite('/home/baxter/ros_ws/src/baxter_tools/share/images/gripper_obj2.jpg', cv_img)
+
         # Find centroid of largest dark object
         rvr_comm,sdr_comm = multiprocessing.Pipe(duplex=False)
         p = multiprocessing.Process(target=vis_tools.find_thing,args=(cv_img, self.thing,sdr_comm,))
@@ -109,7 +109,7 @@ class thing_fetcher:
                 purple = [150, 0, 150]
                 red = [0, 0, 255]
                 blue = [255, 0, 0]
-                cv2.drawContours(cv_img, approx, -1, purple, 8) 
+                cv2.drawContours(cv_img, approx, -1, purple, 8)
                 cv2.circle(cv_img, (cx, cy), 5, red, -1)
                 cv2.circle(cv_img, (self.gx, self.gy), 5, blue, -8)
 
@@ -132,7 +132,7 @@ class thing_fetcher:
             time.sleep(0.5)
             self.head.command_nod(0)
             self.dist = float(baxter_interface.analog_io.AnalogIO(arm + '_hand_range').state() / 1000.0)
-        
+
 
     def move_center(self, cx, cy):
         # If objective completed, return
@@ -168,7 +168,7 @@ class thing_fetcher:
                     self.angle_corrected = True
                     self.finished = 0
                     return
-                
+
 
                 try:
                     vert_off = pos_tools.set_z_distance(0.04, arm)
@@ -223,7 +223,7 @@ def main(args):
     camera_setup()
     bf = thing_fetcher()
     print 'Press x to quit, n to (re)start or d to re-find table distance'
-    
+
     try:
       rospy.spin()
     except KeyboardInterrupt:
