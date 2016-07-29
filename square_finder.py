@@ -6,6 +6,7 @@ from a red square to a blue square using a gecko gripper.
 The squares are found using opencv and tracked using an included class.
 Both square must be visible in the robot's first view for the demo to complete
 successfully.
+Requires opencv 3.
 """
 
 import sys
@@ -242,7 +243,7 @@ class square_tracker:
 
 
 def camera_setup():
-    # Open hand-camera
+    """ Open hand-camera. """
     try:
         baxter_interface.camera.CameraController('head_camera').close()
     except Exception:
@@ -370,6 +371,7 @@ def main(args):
     bf = glass_mover()
     print 'Press x to quit, n to (re)start or d to re-find table distance'
 
+    # Ensure rospy keeps running
     try:
       rospy.spin()
     except KeyboardInterrupt:
