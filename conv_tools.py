@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+"""
+Library of functions for converting between various position and message
+formats.
+"""
+
 import rospy
 from moveit_commander import MoveItCommanderException
 from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
@@ -22,6 +27,7 @@ def dict_to_list(pose_dict):
     lst.append(pose_dict['orientation'].w)
     return lst
 
+
 def dict_to_list_euler(pose_dict):
 
     """
@@ -34,8 +40,9 @@ def dict_to_list_euler(pose_dict):
     qtn.y = pose_dict['orientation'].y
     qtn.z = pose_dict['orientation'].z
     qtn.w = pose_dict['orientation'].w
-    elr_x, elr_y, elr_z, = tf.transformations.euler_from_quaternion([qtn.x,qtn.y,qtn.z,qtn.w])
-                                                   
+    elr_x, elr_y, elr_z, = tf.transformations.euler_from_quaternion(
+        [qtn.x,qtn.y,qtn.z,qtn.w])
+
     lst = []
     lst.append(pose_dict['position'].x)
     lst.append(pose_dict['position'].y)
@@ -44,6 +51,7 @@ def dict_to_list_euler(pose_dict):
     lst.append(elr_y)
     lst.append(elr_z)
     return lst
+
 
 def list_to_dict(lst):
 
@@ -61,7 +69,7 @@ def list_to_dict(lst):
         qtn.z = lst[5]
         qtn.w = lst[6]
     else:
-        raise MoveItCommanderException("""Expected either 6 or 7 elements 
+        raise MoveItCommanderException("""Expected either 6 or 7 elements
                 in list: (x,y,z,r,p,y) or (x,y,z,qx,qy,qz,qw)""")
 
     pnt = Point()
@@ -73,7 +81,8 @@ def list_to_dict(lst):
         'position': pnt,
         'orientation': qtn
     }
-    return pose_dict   
+    return pose_dict
+
 
 def dict_to_msg(pose_dict):
     pose_msg = Pose()
@@ -81,12 +90,14 @@ def dict_to_msg(pose_dict):
     pose_msg.orientation = pose_dict['orientation']
     return pose_msg
 
+
 def msg_to_dict(pose_msg):
     pose_dict = {
         'position': pose_msg.position,
         'orientation': pose_msg.orientation
     }
     return pose_dict
+
 
 def stamp(pose_msg):
 

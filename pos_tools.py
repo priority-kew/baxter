@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+"""
+Library of functions for moving Baxter and getting information about its
+positions.
+"""
+
 import rospy
 import baxter_interface
 from baxter_core_msgs.srv import (
@@ -18,10 +23,8 @@ import numpy as np
 import multiprocessing
 import time
 import tf
-import baxter_tools
 
 # Informational
-
 def get_pose(limb):
 
     """
@@ -36,26 +39,28 @@ def get_pose(limb):
     else:
         raise Exception("Expected argument 'right' or 'left' to get_posn.")
 
+
 def is_trans_still(limb):
 
-    """ 
+    """
     Return True if the magnitude of the linear velocity of the limb (right
     or left) is under 0.0001; otherwise return False.
     """
-    
+
     vel_vec = baxter_interface.limb.Limb(limb).endpoint_velocity()['linear']
-    vel_mag = math.sqrt(vel_vec.x * vel_vec.x + 
-                        vel_vec.y * vel_vec.y + 
+    vel_mag = math.sqrt(vel_vec.x * vel_vec.x +
+                        vel_vec.y * vel_vec.y +
                         vel_vec.z * vel_vec.z)
     if vel_mag > 0.015:
         return False
     else:
         return True
 
+
 # Motional
 def go_to_pose(lmb, pose_msg, timeout=15.0):
 
-    """ 
+    """
     Given a limb (right or left) and a desired pose as a stamped message,
     run inverse kinematics to attempt to find a joint configuration to yield
     the pose and then move limb to the configuration.
@@ -78,12 +83,14 @@ def go_to_pose(lmb, pose_msg, timeout=15.0):
     # Check if result valid
     if ik_response.isValid[0]:
         # convert response to joint position control dictionary
-        limb_joints = dict(zip(ik_response.joints[0].name, 
+        limb_joints = dict(zip(ik_response.joints[0].name,
                                ik_response.joints[0].position))
         # send limb to joint positions
-        baxter_interface.limb.Limb(lmb).move_to_joint_positions(limb_joints, timeout=timeout)
+        baxter_interface.limb.Limb(lmb).move_to_joint_positions(
+            limb_joints, timeout=timeout)
     else:
         raise Exception("Failed to find valid joint configuration.")
+
 
 def update_pose(pos, dx=0.0, dy=0.0, dz=0.0, dxr=0.0, dyr=0.0, dzr=0.0):
 
@@ -96,17 +103,20 @@ def update_pose(pos, dx=0.0, dy=0.0, dz=0.0, dxr=0.0, dyr=0.0, dzr=0.0):
     new_posn = Point(pos.position.x + dx,
                      pos.position.y + dy,
                      pos.position.z + dz)
-    elr = tf.transformations.euler_from_quaternion([pos.orientation.x, 
-                                                    pos.orientation.y,  
-                                                    pos.orientation.z,  
+    elr = tf.transformations.euler_from_quaternion([pos.orientation.x,
+                                                    pos.orientation.y,
+                                                    pos.orientation.z,
                                                     pos.orientation.w])
     new_elr = Point(elr[0] + dxr, elr[1] + dyr, elr[2] + dzr)
     qtn = Quaternion()
-    qtn.x, qtn.y, qtn.z, qtn.w = tf.transformations.quaternion_from_euler(new_elr.x, new_elr.y, new_elr.z)
+    qtn.x, qtn.y, qtn.z, qtn.w = tf.transformations.quaternion_from_euler(
+        new_elr.x, new_elr.y, new_elr.z)
     pos.position = new_posn
     pos.orientation = qtn
 
-def go_relative(lmb, dx=0.0, dy=0.0, dz=0.0, dxr=0.0, dyr=0.0, dzr=0.0, timeout=15.0):
+
+def go_relative(lmb, dx=0.0, dy=0.0, dz=0.0, dxr=0.0, dyr=0.0, dzr=0.0,
+                timeout=15.0):
 
     """
     Move the given limb by any supplied offsets:
@@ -116,13 +126,16 @@ def go_relative(lmb, dx=0.0, dy=0.0, dz=0.0, dxr=0.0, dyr=0.0, dzr=0.0, timeout=
     """
 
     pos = conv_tools.dict_to_msg(get_pose(lmb))
-    update_pose(pos, dx, dy, dz, dxr/180.0*math.pi, dyr/180.0*math.pi, dzr/180.0*math.pi)
-    new_pose = baxter_tools.stamp(pos)
+    update_pose(pos, dx, dy, dz, dxr/180.0*math.pi, dyr/180.0*math.pi,
+                dzr/180.0*math.pi)
+    new_pose = conv_tools.stamp(pos)
     go_to_pose(lmb, new_pose, timeout)
 
-def go_to(lmb, x=np.nan, y=np.nan, z=np.nan, xr=np.nan, yr=np.nan, zr=np.nan, timeout=15.0):
 
-    """ 
+def go_to(lmb, x=np.nan, y=np.nan, z=np.nan, xr=np.nan, yr=np.nan, zr=np.nan,
+          timeout=15.0):
+
+    """
     Move the given limb to any supplied coordinates and rotations:
     dx, dy, dz for location;
     dxr, dyr, dzr for rotation (degrees).
@@ -130,9 +143,9 @@ def go_to(lmb, x=np.nan, y=np.nan, z=np.nan, xr=np.nan, yr=np.nan, zr=np.nan, ti
     """
 
     pos = conv_tools.dict_to_msg(get_pose(lmb))
-    elr = tf.transformations.euler_from_quaternion([pos.orientation.x, 
-                                                    pos.orientation.y,  
-                                                    pos.orientation.z,  
+    elr = tf.transformations.euler_from_quaternion([pos.orientation.x,
+                                                    pos.orientation.y,
+                                                    pos.orientation.z,
                                                     pos.orientation.w])
 
     if np.isnan(x):
@@ -159,13 +172,15 @@ def go_to(lmb, x=np.nan, y=np.nan, z=np.nan, xr=np.nan, yr=np.nan, zr=np.nan, ti
 
     new_posn = Point(x, y, z)
     qtn = Quaternion()
-    qtn.x, qtn.y, qtn.z, qtn.w = tf.transformations.quaternion_from_euler(xr, yr, zr)
+    qtn.x, qtn.y, qtn.z, qtn.w = tf.transformations.quaternion_from_euler(
+        xr, yr, zr)
 
     pos.position = new_posn
     pos.orientation = qtn
 
     new_pose = conv_tools.stamp(pos)
     go_to_pose(lmb, new_pose, timeout)
+
 
 def go_vertical(lmb):
 
@@ -175,21 +190,23 @@ def go_vertical(lmb):
 
     go_to(lmb, xr=180.0, yr=0.0)
 
+
 # Head
 def command_shake():
-    """Shake head once."""
+    """ Shake head once. """
     head = baxter_interface.Head()
     c = 70
     head.set_pan(0.2, speed=c)
     head.set_pan(-0.3, speed=c)
     head.set_pan(0.0, speed=c)
 
+
 # Complex control
 def move_point(lmb, dest, pnt, dist, calib=0.0021):
 
     """
     Given a point in an image, the desired location of that point, the
-    distance of the camera from the surface, and a limb (right or left), 
+    distance of the camera from the surface, and a limb (right or left),
     attempt to move the limb such that the point moves to the desired location.
     """
 
@@ -203,6 +220,7 @@ def move_point(lmb, dest, pnt, dist, calib=0.0021):
 
     go_relative(lmb, dx=x_offset, dy=y_offset)
 
+
 def set_z_distance(lmb, goal, tol=0.005):
 
     """
@@ -212,7 +230,8 @@ def set_z_distance(lmb, goal, tol=0.005):
     """
 
     # Distance to nearest object in meters
-    dist = float(baxter_interface.analog_io.AnalogIO(lmb + '_hand_range').state() / 1000.0)
+    dist = float(baxter_interface.analog_io.AnalogIO(
+        lmb + '_hand_range').state() / 1000.0)
 
     error = goal - dist
     if abs(error) < tol:
@@ -220,12 +239,14 @@ def set_z_distance(lmb, goal, tol=0.005):
     go_relative(lmb, dz=error)
     return error + set_z_distance(lmb, goal, tol)
 
+
 def go_F_ctrl_vertical_relative(z_offset, F_max, lmb, speed=0.15):
 
     """
-    Attempt to move the arm to z_offset unless F_max 
-    (vertical force the limb is exerting) is reached first. 
+    Attempt to move the arm to z_offset unless F_max
+    (vertical force the limb is exerting) is reached first.
     Return True if F_max is reached before z_offset; False otherwise.
+    Not working yet.
     """
 
     arm = baxter_interface.limb.Limb(lmb)
@@ -240,6 +261,7 @@ def go_F_ctrl_vertical_relative(z_offset, F_max, lmb, speed=0.15):
         time.sleep(0.1)
     g.terminate()
 
+
 def watchdog(F_max, lmb):
     rospy.signal_shutdown('cleaning')
     rospy.init_node('watchdog')
@@ -252,6 +274,7 @@ def watchdog(F_max, lmb):
         except KeyError:
             pass
 
+
 def goer(z_offset, lmb):
     rospy.signal_shutdown('cleaning')
     rospy.init_node('goer')
@@ -260,7 +283,7 @@ def goer(z_offset, lmb):
 
 
 
-    
+
 
 
 

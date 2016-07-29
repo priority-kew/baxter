@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+"""
+Library of functions for processing images,
+nominally for Baxter but could be used elsewhere.
+"""
+
 import rospy
 import baxter_interface
 from sensor_msgs.msg import Image
@@ -10,12 +15,13 @@ from matplotlib import pyplot as plt
 import multiprocessing
 import time
 
+
 def find_black_center(cv_img, msk):
 
     """
     Given an opencv image containing a dark object on a light background
     and a mask of objects to ignore (a gripper, for instance),
-    return the coordinates of the centroid of the largest object 
+    return the coordinates of the centroid of the largest object
     (excluding those touching edges) and its simplified contour.
     If none detected or problem with centroid, return [(-1, -1), False].
     """
@@ -24,7 +30,8 @@ def find_black_center(cv_img, msk):
     (rows, cols, _) = cv_img.shape
     grey_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
     grey_img = cv2.bilateralFilter(grey_img, 11, 17, 17)
-    _, outlines = cv2.threshold(grey_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    _, outlines = cv2.threshold(
+        grey_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
     # Subtract gripper
     msk_out = cv2.subtract(cv2.bitwise_not(outlines), msk)
@@ -33,7 +40,8 @@ def find_black_center(cv_img, msk):
     flood_fill_edges(msk_out, 30)
 
     # Find contours
-    _, contours, _ = cv2.findContours(msk_out, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    _, contours, _ = cv2.findContours(
+        msk_out, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if len(contours) == 0:
         return [(-1, -1), False]
@@ -58,6 +66,7 @@ def find_black_center(cv_img, msk):
         return [(cx, cy), approx]
     except ZeroDivisionError:
         return [(-1, -1), False]
+
 
 def flood_fill_edges(img, stride):
 
@@ -89,16 +98,18 @@ def flood_fill_edges(img, stride):
             cv2.floodFill(img, msk, (i, rows-1), black)
         i += stride
 
+
 def make_mask(limb, filename):
 
     """
-    Given a limb (right or left) and a name to save to 
+    Given a limb (right or left) and a name to save to
     (in the baxter_tools/share/images/ directory),
     create a mask of any dark objects in the image from the camera
     and save it.
     """
 
-    image_sub = rospy.Subscriber('/cameras/' + limb + '_hand_camera/image',Image,callback)
+    image_sub = rospy.Subscriber(
+        '/cameras/' + limb + '_hand_camera/image',Image,callback)
 
 
     try:
@@ -120,7 +131,8 @@ class thing_finder:
     img must be under a certain size (somewhere around 4.8kB for jpg).
     """
 
-    def __init__(self, img, min_match_count=10, flann_index=0, flann_trees=5, flann_checks=50):
+    def __init__(self, img, min_match_count=10, flann_index=0, flann_trees=5,
+            flann_checks=50):
         self.min_match_count = min_match_count
         self.thing = img
         self.rvr_comm,self.sdr_comm = multiprocessing.Pipe(duplex=False)
@@ -129,7 +141,8 @@ class thing_finder:
         self.sift = cv2.xfeatures2d.SIFT_create()
 
         # Find keypoints and descriptors of thing with SIFT
-        self.keypoints, self.descriptors = self.sift.detectAndCompute(img, None)
+        self.keypoints, self.descriptors = self.sift.detectAndCompute(img,
+                                                                      None)
         print 'num keypoints =', len(self.keypoints)
 
         # Initiate FLANN matcher
@@ -142,7 +155,7 @@ class thing_finder:
 
         """
         Search for thing within given scene.
-        If it is found, returns a list containing the coordinates of its 
+        If it is found, returns a list containing the coordinates of its
         centroid within the scene, the contour surrounding it within the scene
         and its angle.
         If the object is not found or a segfault occurs, will instead return
@@ -164,13 +177,14 @@ class thing_finder:
 
     def sterile_match(self, scene):
         # Find keypoints and descriptors in scene with SIFT
-        scene_keypoints, scene_descriptors = self.sift.detectAndCompute(scene, None)
+        scene_keypoints, scene_descriptors = self.sift.detectAndCompute(scene,
+                                                                        None)
         # Match descriptors with FLANN
         matches = self.flann.knnMatch(self.descriptors,scene_descriptors,k=2)
-        
+
         # Store all the good matches as per Lowe's ratio test.
         good = []
-        
+
         for m,n in matches:
             if m.distance < 0.7*n.distance:
                 good.append(m)
@@ -180,15 +194,17 @@ class thing_finder:
             self.sdr_comm.send([(-1,-1),False,False])
             return
 
-        src_pts = np.float32([ self.keypoints[m.queryIdx].pt for m in good ]).reshape(-1,1,2)
-        dst_pts = np.float32([ scene_keypoints[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
+        src_pts = np.float32(
+            [self.keypoints[m.queryIdx].pt for m in good]).reshape(-1,1,2)
+        dst_pts = np.float32(
+            [scene_keypoints[m.trainIdx].pt for m in good]).reshape(-1,1,2)
 
         M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-        
+
         matchesMask = mask.ravel().tolist()
 
         h,w = self.thing.shape
-        pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
+        pts = np.float32([[0,0],[0,h-1],[w-1,h-1],[w-1,0]]).reshape(-1,1,2)
         dst = cv2.perspectiveTransform(pts,M)
         # Contour
         cnt = np.int32(dst)
@@ -203,16 +219,20 @@ class thing_finder:
             return
 
         # Find angle
-        mid = [[[(cnt[0][0][0] + cnt[1][0][0])/2, (cnt[0][0][1] + cnt[1][0][1])/2]]]
+        mid = [[[(cnt[0][0][0] + cnt[1][0][0])/2,
+            (cnt[0][0][1] + cnt[1][0][1])/2]]]
         cnt = np.append(cnt, mid, axis=0)
 
-        mid = [[[(cnt[1][0][0] + cnt[2][0][0])/2, (cnt[1][0][1] + cnt[2][0][1])/2]]]
+        mid = [[[(cnt[1][0][0] + cnt[2][0][0])/2,
+            (cnt[1][0][1] + cnt[2][0][1])/2]]]
         cnt = np.append(cnt, mid, axis=0)
 
-        mid = [[[(cnt[2][0][0] + cnt[3][0][0])/2, (cnt[2][0][1] + cnt[3][0][1])/2]]]
+        mid = [[[(cnt[2][0][0] + cnt[3][0][0])/2,
+            (cnt[2][0][1] + cnt[3][0][1])/2]]]
         cnt = np.append(cnt, mid, axis=0)
 
-        mid = [[[(cnt[3][0][0] + cnt[0][0][0])/2, (cnt[3][0][1] + cnt[0][0][1])/2]]]
+        mid = [[[(cnt[3][0][0] + cnt[0][0][0])/2,
+            (cnt[3][0][1] + cnt[0][0][1])/2]]]
         cnt = np.append(cnt, mid, axis=0)
 
         _, _, angle = cv2.fitEllipse(cnt)
