@@ -1,0 +1,35 @@
+This project is a collection of tools and demos for controlling a Baxter robot.
+
+conv_tools contains functions for converting between various position and
+message formats. It is primarily meant to be used by pos_tools
+
+pos_tools contains functions for moving Baxter and retrieving position 
+information. In progress is a concept to incorporate force interrupts
+(i.e. having Baxter stop moving when a certain force level is measured)
+by running movement and force monitoring in separate threads. Had problems
+trying to initialize rospy twice (in order to start nodes in both threads),
+but it should clearly be possible to get around this - the point of ROS is
+having multiple nodes running.
+
+vis_tools contains functions for image processing. It can edit a gripper out
+of an image, find dark object in a black and white image, recognize a specific
+object in a scene. Uses OpenCV 3. Uses the Python multiprocessing library in 
+the image recognition code to avoid crashing the entire program when the C++
+code in OpenCV segfaults. (Would be preferable to not have segfaults, but this 
+works.)
+
+fetch_cp is a demonstration where Baxter locates a specific object, picks it up
+and brings it back to a preset location. In testing, a white box was used with
+a design drawn in Sharpie.
+
+square_finder is a demonstration where Baxter moves a piece of glass from a red
+square to a blue square using gecko grippers. In testing, the background was 
+plain white and the squares were cardboard with white infill and colored tape 
+around the borders. Missing the lowest-level pickup and putdown functions for 
+the gecko grippers, but they were specific to the mechanical design, so no 
+great loss. Of interest in this file is more the computer vision.
+
+The research was carried out, in part, at the Jet Propulsion Laboratory, 
+California Institute of Technology, under a contract with the 
+National Aeronautics and Space Administration. Copyright 2015 
+California Institute of Technology. Government sponsorship acknowledged.
